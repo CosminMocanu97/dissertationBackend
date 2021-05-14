@@ -3,17 +3,15 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"github.com/joho/godotenv"
 	"os"
 
-	"github.com/CosminMocanu97/dissertationBackend/internal/utils"
 	"github.com/CosminMocanu97/dissertationBackend/pkg/log"
 
 	_ "github.com/lib/pq"
 )
 
 const (
-	TEST_ENVIRONMENT       = "test"
-	// database connection consts
 	host = "db"
 	port = 5432
 	user = "postgres"
@@ -22,20 +20,15 @@ const (
 // CreateDbConnection creates a connection to the postgres container
 // if it runs for test, we create outside the docker env so we need to change the host
 func CreateDbConnection(dbName string) (*sql.DB, error) {
-	utils.GetEnvVars()
-
+	GetEnvVars()
 	databasePassword := os.Getenv("DATABASE_PASSWORD")
 
 	var psqlInfo string
-	if dbName == TEST_ENVIRONMENT {
-		psqlInfo = fmt.Sprintf("host=%s port=%d user=%s "+
-			"password=%s dbname=%s sslmode=disable",
-			"0.0.0.0", port, user, databasePassword, dbName)
-	} else {
-		psqlInfo = fmt.Sprintf("host=%s port=%d user=%s "+
-			"password=%s dbname=%s sslmode=disable",
-			host, port, user, databasePassword, dbName)
-	}
+
+	psqlInfo = fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		"0.0.0.0", port, user, databasePassword, dbName)
+
 
 	log.Info("The connection string is %s", psqlInfo)
 
@@ -54,4 +47,26 @@ func InitiateDatabaseTables(db *sql.DB) {
 	if err != nil {
 		log.Fatal("Error creating the users table: %s", err)
 	}
+}
+
+func GetEnvVars() {
+	err := godotenv.Load("password.env")
+	if err != nil {
+		log.Fatal("Error loading the .env file")
+	}
+}
+
+// CreateUsersTable test func for the db
+func CreateUsersTable(db *sql.DB) error {
+	createUsersQuery :=
+		"create table if not exists users (  id serial primary key,  email text not null, passHash text not null, " +
+			"isActivated bool not null default false, phoneNumber text not null, activationToken text not null);"
+	_, err := db.Query(createUsersQuery)
+	if err != nil {
+		log.Error("Error creating the users table: %s", err)
+	}
+
+	log.Info("Successfully created users table")
+
+	return err
 }

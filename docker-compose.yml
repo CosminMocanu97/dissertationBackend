@@ -1,24 +1,5 @@
 version: '2.1'
 services:
-  # App Service
-  app:
-    # Configuration for building the docker image for the service
-    build:
-      context: . # Use an image built from the specified dockerfile in the current directory.
-      dockerfile: Dockerfile
-    ports:
-      - 3000:3000/tcp
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-      adminer:
-        condition: service_started
-    expose:
-      [3000]
-    links:
-      - db
-
   db:
     image: postgres
     command: postgres -c 'max_connections=200'
@@ -29,8 +10,11 @@ services:
       POSTGRES_PASSWORD: cretaker
     ports:
         - 5432:5432/tcp
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    volumes:
+      - ./docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+      - database_data:/var/lib/postgresql/data
+
+volumes:
+  database_data:
+    driver: local
+
