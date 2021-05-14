@@ -6,7 +6,6 @@ import (
 )
 
 type Service struct {
-	Version        string
 	Database       *sql.DB
 	JwtSecret      string
 	MailingService mail.Mailer

@@ -19,7 +19,6 @@ type LoginResponse struct {
 type RegistrationData struct {
 	Email       string `form:"email"`
 	Password    string `form:"password"`
-	PhoneNumber string `form:"phoneNumber"`
 }
 
 type User struct {
@@ -27,6 +26,6 @@ type User struct {
 	Email           string
 	Passhash        string
 	IsActivated     bool
-	PhoneNumber     string
+	IsAdmin 		bool
 	ActivationToken string
 }
