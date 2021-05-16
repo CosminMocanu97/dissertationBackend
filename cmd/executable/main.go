@@ -1,13 +1,14 @@
 package main
 
 import (
-	_ "bufio"
+	"os"
 	"flag"
-	_ "os"
-
-	"github.com/CosminMocanu97/dissertationBackend/internal/database"
-	"github.com/CosminMocanu97/dissertationBackend/internal/webserver"
 	"github.com/CosminMocanu97/dissertationBackend/pkg/log"
+	"github.com/CosminMocanu97/dissertationBackend/internal/mail"
+	"github.com/CosminMocanu97/dissertationBackend/internal/database"
+	"github.com/CosminMocanu97/dissertationBackend/internal/utils"
+	"github.com/CosminMocanu97/dissertationBackend/internal/webserver"
+
 	"time"
 )
 
@@ -24,6 +25,12 @@ func main() {
 	if *env != STAGING_ENVIRONMENT {
 		log.Fatal("Unknown environment: %s", *env)
 	}
+
+	utils.GetEnvVars()
+
+	// retrieve env vars
+	jwtSecret := os.Getenv("JWT_SECRET")
+	sendGridAPIKey := os.Getenv("SENDGRID_API_KEY")
 
 	// sleep to give time to the Postgres container to start
 	time.Sleep(time.Second * 5)
@@ -49,8 +56,13 @@ func main() {
 
 	database.InitiateDatabaseTables(db)
 
+	mailer := mail.NewMailerService(sendGridAPIKey)
+
+
 	service := webserver.Service{
 		Database:       db,
+		JwtSecret: jwtSecret,
+		MailingService: mailer,
 	}
 	a := webserver.Api(&service)
 	err = a.Run(":8080")
