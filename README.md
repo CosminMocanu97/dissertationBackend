@@ -1,2 +1,2 @@
 # dissertationBackend
-Backend for the dissertation thesis
+Backend for the dissertation thesis web app 
