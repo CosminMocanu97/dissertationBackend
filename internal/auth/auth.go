@@ -5,7 +5,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/CosminMocanu97/dissertationBackend/pkg/log"
 	"github.com/dgrijalva/jwt-go"
+)
+
+var (
+	NoJWTTokenProvidedError = fmt.Errorf("the jwt token was not provided")
+	TokenIsExpired = fmt.Errorf("the jwt token has expired")
 )
 
 type LoginService interface {
@@ -34,6 +40,11 @@ type AuthCustomClaims struct {
 	jwt.StandardClaims
 }
 
+type RefreshAuthCustomClaims struct {
+	Email string `json:"email"`
+	jwt.StandardClaims
+}
+
 type jwtServices struct {
 	secretKey string
 	issuer    string
@@ -48,20 +59,20 @@ func JWTAuthService() *jwtServices {
 }
 
 func getSecretKey() string {
-	secret := os.Getenv("SECRET")
+	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		secret = "secret"
 	}
 	return secret
 }
 
-func (service *jwtServices) GenerateToken(id int64, email string, isActivated bool) string {
+func (service *jwtServices) GenerateToken(id int64, email string, isActivated bool) map[string]string {
 	claims := &AuthCustomClaims{
 		id,
 		email,
 		isActivated,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 48).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 			Issuer:    service.issuer,
 			IssuedAt:  time.Now().Unix(),
 		},
@@ -73,16 +84,64 @@ func (service *jwtServices) GenerateToken(id int64, email string, isActivated bo
 	if err != nil {
 		panic(err)
 	}
-	return t
+
+	rtClaims := &RefreshAuthCustomClaims{
+		email,
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 48).Unix(),
+			Issuer:    service.issuer,
+			IssuedAt:  time.Now().Unix(),
+		},
+	}
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
+
+	//encoded string
+	rt, err := refreshToken.SignedString([]byte(service.secretKey))
+	if err != nil {
+		panic(err)
+	}
+
+	return map[string]string{
+		"access_token":  t,
+		"refresh_token": rt,
+	}
 }
 
 func (service *jwtServices) ValidateToken(encodedToken string) (*jwt.Token, error) {
+	if len(encodedToken) == 0 {
+		return nil, NoJWTTokenProvidedError
+	}
 	var customClaims AuthCustomClaims
-	return jwt.ParseWithClaims(encodedToken, &customClaims, func(token *jwt.Token) (interface{}, error) {
+	/*return jwt.ParseWithClaims(encodedToken, &customClaims, func(token *jwt.Token) (interface{}, error) {
 		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
 			return nil, fmt.Errorf("invalid token %s", token.Header["alg"])
 
+		}  
+		if customClaims.ExpiresAt < time.Now().Unix() {
+			fmt.Println("A expirat")
+			return []byte(service.secretKey), TokenIsExpired
 		}
+
 		return []byte(service.secretKey), nil
 	})
+	*/
+	token, err := jwt.ParseWithClaims(encodedToken, &customClaims, func(token *jwt.Token) (interface{}, error) {
+		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
+			return nil, fmt.Errorf("invalid token %s", token.Header["alg"])
+
+		}  
+		return []byte(service.secretKey), nil
+	})
+
+	claims := token.Claims.(*AuthCustomClaims) 
+	if claims.ExpiresAt < time.Now().Unix() {
+		return nil, TokenIsExpired
+	}
+
+	if err != nil {
+		log.Error("%s", err)
+		return nil, err
+	}
+
+	return token, nil
 }

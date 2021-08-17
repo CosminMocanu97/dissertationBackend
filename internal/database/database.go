@@ -44,6 +44,16 @@ func InitiateDatabaseTables(db *sql.DB) {
 	if err != nil {
 		log.Fatal("Error creating the users table: %s", err)
 	}
+
+	err = CreateFilesTable(db)
+	if err != nil {
+		log.Fatal("Error creating the files table: %s", err)
+	}
+
+	err = CreateFoldersTable(db)
+	if err != nil {
+		log.Fatal("Error creating the folders table: %s", err)
+	}
 }
 
 func GetEnvVars() {

@@ -46,18 +46,11 @@ func main() {
 		log.Info("Successfully created db connection")
 	}
 
-	// create the db tables
-	err = database.CreateUsersTable(db)
-	if err != nil {
-		log.Error("Error creating the users table: %s", err)
-	}
-
 	defer db.Close()
 
 	database.InitiateDatabaseTables(db)
 
 	mailer := mail.NewMailerService(sendGridAPIKey)
-
 
 	service := webserver.Service{
 		Database:       db,
