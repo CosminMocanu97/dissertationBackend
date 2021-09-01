@@ -256,8 +256,8 @@ func RemoveSubfolder(db *sql.DB, subfolderID int64, folderID int64, ownerID int6
 }
 
 func RemoveFilesFromSubfolder(db *sql.DB, subfolderID int64, folderID int64, userID int64) bool {
-	deleteFilesFromFolderStatement := "DELETE FROM files WHERE folderid=$1 AND ownerid=$2"
-	_, err := db.Exec(deleteFilesFromFolderStatement, folderID, userID)
+	deleteFilesFromFolderStatement := "DELETE FROM files WHERE subfolderid=$1 AND folderid=$2 AND ownerid=$3"
+	_, err := db.Exec(deleteFilesFromFolderStatement, subfolderID, folderID, userID)
 	if err != nil {
 		log.Error("Error removing the files from folder with ID %d: %s", folderID, err)
 		return false
