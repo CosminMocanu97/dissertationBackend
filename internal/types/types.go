@@ -26,5 +26,6 @@ type User struct {
 	Email           string
 	Passhash        string
 	IsActivated     bool
+	IsAdmin 		bool
 	ActivationToken string
 }

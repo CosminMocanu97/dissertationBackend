@@ -11,7 +11,7 @@ import (
 
 var (
 	NoJWTTokenProvidedError = fmt.Errorf("the jwt token was not provided")
-	TokenIsExpired = fmt.Errorf("the jwt token has expired")
+	TokenIsExpired          = fmt.Errorf("the jwt token has expired")
 )
 
 type LoginService interface {
@@ -72,7 +72,7 @@ func (service *jwtServices) GenerateToken(id int64, email string, isActivated bo
 		email,
 		isActivated,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+			ExpiresAt: time.Now().Add(time.Minute * 30).Unix(),
 			Issuer:    service.issuer,
 			IssuedAt:  time.Now().Unix(),
 		},
@@ -88,7 +88,7 @@ func (service *jwtServices) GenerateToken(id int64, email string, isActivated bo
 	rtClaims := &RefreshAuthCustomClaims{
 		email,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 48).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 2).Unix(),
 			Issuer:    service.issuer,
 			IssuedAt:  time.Now().Unix(),
 		},
@@ -116,7 +116,7 @@ func (service *jwtServices) ValidateToken(encodedToken string) (*jwt.Token, erro
 		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
 			return nil, fmt.Errorf("invalid token %s", token.Header["alg"])
 
-		}  
+		}
 		if customClaims.ExpiresAt < time.Now().Unix() {
 			fmt.Println("A expirat")
 			return []byte(service.secretKey), TokenIsExpired
@@ -129,11 +129,11 @@ func (service *jwtServices) ValidateToken(encodedToken string) (*jwt.Token, erro
 		if _, isvalid := token.Method.(*jwt.SigningMethodHMAC); !isvalid {
 			return nil, fmt.Errorf("invalid token %s", token.Header["alg"])
 
-		}  
+		}
 		return []byte(service.secretKey), nil
 	})
 
-	claims := token.Claims.(*AuthCustomClaims) 
+	claims := token.Claims.(*AuthCustomClaims)
 	if claims.ExpiresAt < time.Now().Unix() {
 		return nil, TokenIsExpired
 	}

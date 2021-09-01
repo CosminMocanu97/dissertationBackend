@@ -51,17 +51,25 @@ func Api(s *Service) *gin.Engine {
 	r.POST("/forgot-password", s.HandlePostForgotPasswordRequest)
 	r.POST("/renew-password/:token", s.HandlePostRenewPasswordRequest)
 
-	r.POST("/new_folder", AuthorizeJWT(), s.HandlePostFolderRequest)
-	r.POST("/user/:folder_id/upload", AuthorizeJWT(), s.HandlePostAddFile)
-	r.POST("/user/:folder_id", AuthorizeJWT(), s.HandlePostCheckPassword)
-	r.POST("/user/:folder_id/:file_id/update", AuthorizeJWT(), s.HandlePostModifiedFile)
-
+	//folders endpoints
 	r.GET("/user", AuthorizeJWT(), s.HandleGetAllFullFolderDetails)
-	r.GET("/user/:folder_id", AuthorizeJWT(), s.HandleGetAllFilesForCurrentFolder)
-	r.GET("/user/:folder_id/:file_id", AuthorizeJWT(), s.HandleGetFileForFileID)
-
+	r.POST("/new_folder", AuthorizeJWT(), s.HandlePostFolderRequest)
 	r.DELETE("/user/:folder_id/remove_folder", AuthorizeJWT(), s.HandleRemoveFolder)
-	r.DELETE("/user/:folder_id/:file_id/remove_file", AuthorizeJWT(), s.HandleRemoveFile)
+
+	//subfolder endpoints
+	r.GET("/user/:folder_id", AuthorizeJWT(), s.HandleGetAllFullSubfolderDetails)
+	r.POST("/user/:folder_id/new_subfolder", AuthorizeJWT(), s.HandlePostSubfolderRequest)
+	r.POST("/user/:folder_id/:subfolder_id", AuthorizeJWT(), s.HandlePostCheckPasswordSubfolder)
+	r.DELETE("/user/:folder_id/:subfolder_id/remove_subfolder", AuthorizeJWT(), s.HandleRemoveSubfolder)
+
+	//files endpoints
+	r.GET("/user/:folder_id/:subfolder_id", AuthorizeJWT(), s.HandleGetAllFilesForCurrentFolder)
+	r.GET("/user/:folder_id/:subfolder_id/:file_id", AuthorizeJWT(), s.HandleGetFileForFileID)
+	r.POST("/user/:folder_id/:subfolder_id/:file_id", AuthorizeJWT(), s.HandlePostCheckFilePassword)
+	r.POST("/user/:folder_id/:subfolder_id/upload", AuthorizeJWT(), s.HandlePostAddFile)
+	r.POST("/user/:folder_id/:subfolder_id/:file_id/update", AuthorizeJWT(), s.HandlePostModifiedFile)
+	r.DELETE("/user/:folder_id/:subfolder_id/:file_id/remove_file", AuthorizeJWT(), s.HandleRemoveFile)
+
 	//generate new jwt
 	r.POST("/newtoken", s.GenerateNewToken)
 

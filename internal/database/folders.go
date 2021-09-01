@@ -5,14 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	//"errors"
-	//"fmt"
-	//"github.com/bwmarrin/snowflake"
-
-	//"github.com/CosminMocanu97/dissertationBackend/internal/auth"
-	//"github.com/CosminMocanu97/dissertationBackend/pkg/gserror"
-	//"github.com/CosminMocanu97/dissertationBackend/internal/types"
-	"github.com/CosminMocanu97/dissertationBackend/internal/auth"
 	"github.com/CosminMocanu97/dissertationBackend/pkg/log"
 )
 
@@ -29,13 +21,11 @@ type FolderDetails struct {
 type SingleFolderDetails struct {
 	Name string
 	OwnerID int64
-	Password string
-	IsLocked bool
 }
 
 func CreateFoldersTable(db *sql.DB) error {
 	createFilesQuery :=
-		"CREATE TABLE if not exists folders (id serial primary key, ownerId bigint not null, name text not null, password text not null, isLocked bool not null );"
+		"CREATE TABLE if not exists folders (id serial primary key, ownerId bigint not null, name text not null);"
 	_, err := db.Query(createFilesQuery)
 	if err != nil {
 		log.Error("Error creating the folders table: %s", err)
@@ -68,7 +58,7 @@ func FolderExists(db *sql.DB, name string) (bool, error) {
 	}
 }
 
-func AddNewFolder(db *sql.DB, userID int64, folderName string, password string, isLocked bool) (int64, error) {
+func AddNewFolder(db *sql.DB, userID int64, folderName string) (int64, error) {
 	folderAlreadyExists, err := FolderExists(db, folderName)
 	if err != nil {
 		log.Error("Error while checking if the folder %s already exists in the database", folderName)
@@ -80,25 +70,20 @@ func AddNewFolder(db *sql.DB, userID int64, folderName string, password string, 
 		log.Error("Folder %s already exists in the database", folderName)
 		return 0, errors.New(FOLDER_ALREADY_EXISTS)
 	} else {
-		// if the email is not already in the database, try to add it
 		if !folderAlreadyExists {
-			var fileID int64
-			passHash := "" 
-			if len(password) > 0 {
-				passHash = auth.ComputePasswordHash(password)
-			}
+			var folderID int64
 
 			addNewFolderStatement :=
-				"INSERT INTO folders(ownerId, name, password, isLocked) VALUES($1, $2, $3, $4) RETURNING id;"
+				"INSERT INTO folders(ownerId, name) VALUES($1, $2) RETURNING id;"
 
-			err := db.QueryRow(addNewFolderStatement, userID, folderName, passHash, isLocked).Scan(&fileID)
+			err := db.QueryRow(addNewFolderStatement, userID, folderName).Scan(&folderID)
 			if err != nil {
 				log.Error("Error adding the new folder: ", err)
 				return 0, err
 			}
 
 			log.Info("Successfully created the folder %s", folderName)
-			return fileID, nil
+			return folderID, nil
 		} else {
 			err = errors.New(FOLDER_ALREADY_EXISTS)
 			return 0, err
@@ -135,7 +120,7 @@ func GetAllFoldersDetails(db *sql.DB) ([]FolderDetails, error) {
 
 func GetAllFoldersDetailsForID(db *sql.DB, folderID int64) (SingleFolderDetails, error) {
 	getSingleFolderDetailsQuery :=
-		"SELECT ownerid, name, password, islocked FROM folders WHERE id=$1"
+		"SELECT ownerid, name FROM folders WHERE id=$1"
 	rows, err := db.Query(getSingleFolderDetailsQuery, folderID)
 	if err != nil {
 		log.Error("Error getting the folder details for the ID %d: %s",folderID, err)
@@ -146,10 +131,8 @@ func GetAllFoldersDetailsForID(db *sql.DB, folderID int64) (SingleFolderDetails,
 	for rows.Next() {
 		var ownerid int64
 		var name string
-		var password string
-		var isLocked bool
 
-		err = rows.Scan(&ownerid, &name, &password, &isLocked)
+		err = rows.Scan(&ownerid, &name)
 		if err != nil {
 			log.Error("Error retrieving the details for the GetAllFoldersDetailsForID request : %s", err)
 			return singleFolderDetails, err
@@ -157,8 +140,6 @@ func GetAllFoldersDetailsForID(db *sql.DB, folderID int64) (SingleFolderDetails,
 		
 		singleFolderDetails.Name = name
 		singleFolderDetails.OwnerID = ownerid
-		singleFolderDetails.Password = password
-		singleFolderDetails.IsLocked = isLocked
 	}
 	return singleFolderDetails, nil
 }
@@ -178,24 +159,6 @@ func GetFolderNameFromID(db *sql.DB, folderID int64) (string, error) {
 	default:
 		log.Error("Error binding the folder name for folderID %d: %s", folderID, err)
 		return "", err
-	}
-}
-
-func VerifyFolderPassword(db *sql.DB, folderID int64, password string) (bool, error) {
-	currentFolderDetails, err := GetAllFoldersDetailsForID(db, folderID)
-	if err != nil {
-		log.Error("Error retrieving the details for folderID %d; %s", folderID, err)
-		return false, err
-	}
-
-	// verify if the password matches
-	passHash := auth.ComputePasswordHash(password)
-	if currentFolderDetails.Password == passHash {
-		log.Info("The provided password for %s is correct", currentFolderDetails.Name)
-		return true, nil
-	} else {
-		log.Info("The user tried to access the %s but the password was incorrect", currentFolderDetails.Name)
-		return false, nil
 	}
 }
 
@@ -219,6 +182,16 @@ func RemoveFolder(db *sql.DB, folderID int64, ownerID int64) bool {
 		return false
 	}
 
+	return true
+}
+
+func RemoveSubfoldersFromFolder(db *sql.DB, folderID int64, userID int64) bool {
+	deleteSubfoldersFromFolderStatement := "DELETE FROM subfolders WHERE folderid=$1 AND ownerid=$2"
+	_, err := db.Exec(deleteSubfoldersFromFolderStatement, folderID, userID)
+	if err != nil {
+		log.Error("Error removing the subfolders from folder with ID %d: %s", folderID, err)
+		return false
+	}
 	return true
 }
 

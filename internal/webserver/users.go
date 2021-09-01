@@ -27,29 +27,29 @@ type LoginController interface {
 	Login(ctx *gin.Context) string
 }
 
-func Login(db *sql.DB, ctx *gin.Context) (int64, map[string]string, error) {
+func Login(db *sql.DB, ctx *gin.Context) (int64, bool, map[string]string, error) {
 	var credential types.LoginCredentials
 	err := ctx.ShouldBind(&credential)
 	if err != nil {
 		log.Error("Could not bind the LoginCredentials for login")
-		return 0, map[string]string{}, err
+		return 0, false, map[string]string{}, err
 	}
 
 	isAccountActivated, gsErr := database.UserIsActivated(db, credential.Email)
 	if gsErr != nil {
-		return 0, map[string]string{}, gsErr
+		return 0, false, map[string]string{}, gsErr
 	}
 	if !isAccountActivated {
-		return 0, map[string]string{}, gsErr
+		return 0, false, map[string]string{}, gsErr
 	}
 
 	isUserAuthenticated, gsErr := database.VerifyLoginCredentials(db, credential.Email, credential.Password)
 	if gsErr != nil {
-		return 0, map[string]string{}, gsErr
+		return 0, false, map[string]string{}, gsErr
 	}
 	if !isUserAuthenticated {
 		gsErr = errors.New(ERROR_INVALID_CREDENTIALS)
-		return 0, map[string]string{}, gsErr
+		return 0, false, map[string]string{}, gsErr
 	}
 
 	jwtService := auth.JWTAuthService()
@@ -57,10 +57,10 @@ func Login(db *sql.DB, ctx *gin.Context) (int64, map[string]string, error) {
 	user, gsErr := database.GetUserDetailsForEmail(db, credential.Email)
 	if gsErr != nil {
 		log.Error("Error retrieving the user details for email %s: %s", credential.Email, err)
-		return 0, map[string]string{}, err
+		return 0, false, map[string]string{}, err
 	}
 	log.Info("Jwt token was successfully generated!")
-	return user.ID, jwtService.GenerateToken(user.ID, credential.Email, user.IsActivated), nil
+	return user.ID, user.IsAdmin, jwtService.GenerateToken(user.ID, credential.Email, user.IsActivated), nil
 }
 
 // HandlePostRegisterRequest godoc
@@ -166,7 +166,7 @@ func (s *Service) HandlePostRegisterRequest(c *gin.Context) {
 // @Router /login [post]
 func (s *Service) HandlePostLoginRequest(c *gin.Context) {
 	// actual logic
-	id, tokens, err := Login(s.Database, c)
+	id, isAdmin, tokens, err := Login(s.Database, c)
 	if err != nil {
 		// if we have an error check if it is a functional or a logical one
 		if err == sql.ErrNoRows {
@@ -187,6 +187,7 @@ func (s *Service) HandlePostLoginRequest(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, gin.H {
 			"id":    id,
+			"admin" : isAdmin,
 			"token": tokens["access_token"],
 			"refresh_token" : tokens["refresh_token"],
 		})

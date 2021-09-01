@@ -19,7 +19,7 @@ const (
 func CreateUsersTable(db *sql.DB) error {
 	createUsersQuery :=
 		"create table if not exists users (  id serial primary key,  email text not null, passHash text not null, " +
-			"isActivated bool not null default false, activationToken text not null);"
+			"isActivated bool not null default false, isAdmin bool not null default false, activationToken text not null);"
 	_, err := db.Query(createUsersQuery)
 	if err != nil {
 		log.Error("Error creating the users table: %s", err)
@@ -105,10 +105,10 @@ func GetUserDetailsForEmail(db *sql.DB, email string) (types.User, error) {
 	var user types.User
 	user.Email = email
 	getUserIdForEmailQuery :=
-		"SELECT id, passhash, isActivated, activationToken FROM users WHERE email=$1"
+		"SELECT id, passhash, isActivated, isadmin, activationToken FROM users WHERE email=$1"
 
 	row := db.QueryRow(getUserIdForEmailQuery, email)
-	err := row.Scan(&user.ID, &user.Passhash, &user.IsActivated, &user.ActivationToken)
+	err := row.Scan(&user.ID, &user.Passhash, &user.IsActivated, &user.IsAdmin, &user.ActivationToken)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Error("Error finding any entry for the email %s: %s", email, err)
