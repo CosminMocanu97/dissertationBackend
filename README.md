@@ -5,3 +5,5 @@ A barebone Golang backend implementation for the dissertation thesis
     - It may not run on the empty template as there is no go.sum
 
 - The `docker-compose.yml` builds an instance of Postgres and it connects to it.
+
+- Run main program and start the server listening on `localhost:8080.` using `./out/executable` command
